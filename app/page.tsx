@@ -48,7 +48,7 @@ export default async function Home() {
           <div className="hero-builder mx-auto mt-12 max-w-5xl md:mt-16">
             <CompareBuilder />
             <div className="mt-4 flex flex-col items-center justify-center gap-3 text-center sm:flex-row">
-              <p className="text-xs text-zinc-600">Search naturally — <span className="text-zinc-400">tiger tooth talon</span>, <span className="text-zinc-400">doppler m9</span>, <span className="text-zinc-400">deagle printstream</span>.</p>
+              <p className="text-xs text-zinc-500">Search naturally — <span className="text-zinc-400">tiger tooth talon</span>, <span className="text-zinc-400">doppler m9</span>, <span className="text-zinc-400">deagle printstream</span>.</p>
               <RandomBattleButton />
             </div>
           </div>
@@ -62,14 +62,14 @@ export default async function Home() {
             ].map(([value, label]) => (
               <div key={label} className="bg-[#0a0c10]/86 px-4 py-5 text-center backdrop-blur-xl">
                 <div className="stat-number text-xl font-semibold tracking-[-.03em] text-white md:text-2xl">{value}</div>
-                <div className="mt-1 text-[9px] font-semibold uppercase tracking-[.16em] text-zinc-700">{label}</div>
+                <div className="mt-1 text-[9px] font-semibold uppercase tracking-[.16em] text-zinc-500">{label}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="multi-compare" className="relative border-y border-white/[.055] bg-white/[.01]">
+      <section id="multi-compare" className="section-wash-blue relative border-y border-white/[.065]">
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-24 md:py-32 lg:grid-cols-[.72fr_1.28fr] lg:items-center">
           <ScrollReveal>
             <div className="max-w-xl">
@@ -85,18 +85,20 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-24 md:py-32">
-        <ScrollReveal>
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="eyebrow">Already have one in mind?</div>
-            <h2 className="section-title mt-4">See what other players say about it.</h2>
-            <p className="section-copy mx-auto mt-5 max-w-2xl">Find a specific skin, open its community page and instantly upvote or downvote it. Reviews require an account; reactions do not.</p>
-          </div>
-        </ScrollReveal>
-        <div className="mx-auto mt-12 max-w-3xl"><ScrollReveal delay={80}><SkinFinder /></ScrollReveal></div>
+      <section className="section-wash-violet px-5 py-24 md:py-32">
+        <div className="mx-auto max-w-7xl">
+          <ScrollReveal>
+            <div className="mx-auto max-w-3xl text-center">
+              <div className="eyebrow">Already have one in mind?</div>
+              <h2 className="section-title mt-4">See what other players say about it.</h2>
+              <p className="section-copy mx-auto mt-5 max-w-2xl">Find a specific skin, open its community page and instantly upvote or downvote it. Reviews require an account; reactions do not.</p>
+            </div>
+          </ScrollReveal>
+          <div className="mx-auto mt-12 max-w-3xl"><ScrollReveal delay={80}><SkinFinder /></ScrollReveal></div>
+        </div>
       </section>
 
-      <section className="border-y border-white/[.055] bg-white/[.01]">
+      <section className="section-wash-mint border-y border-white/[.065]">
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-24 md:py-32 lg:grid-cols-[.82fr_1.18fr] lg:items-center">
           <ScrollReveal>
             <div>
@@ -109,13 +111,13 @@ export default async function Home() {
           <ScrollReveal delay={90}>
             <div className="glass-panel rounded-[34px] p-6 md:p-8">
               <div className="flex items-center gap-2 text-sm font-semibold text-white"><Palette size={18} className="text-fuchsia-300"/> What the palette system adds</div>
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">{[["Auto colors", "Extract dominant colors once and save them in Supabase."],["Manual override", "Correct tricky skins without changing application code."],["Combo score", "Match palettes using perceptual distance instead of raw HEX equality."],["Skin insights", "Add float, pattern and combo tips from the admin panel."]].map(([title,copy]) => <div key={title} className="rounded-[20px] border border-white/[.06] bg-black/15 p-4"><div className="text-sm font-semibold text-white">{title}</div><p className="mt-2 text-xs leading-5 text-zinc-600">{copy}</p></div>)}</div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">{[["Auto colors", "Extract dominant colors once and save them in Supabase."],["Manual override", "Correct tricky skins without changing application code."],["Combo score", "Match palettes using perceptual distance instead of raw HEX equality."],["Skin insights", "Add float, pattern and combo tips from the admin panel."]].map(([title,copy]) => <div key={title} className="rounded-[20px] border border-white/[.06] bg-black/15 p-4"><div className="text-sm font-semibold text-white">{title}</div><p className="mt-2 text-xs leading-5 text-zinc-400">{copy}</p></div>)}</div>
             </div>
           </ScrollReveal>
         </div>
       </section>
 
-      <section className="border-b border-white/[.055] bg-white/[.01]">
+      <section className="section-wash-purple border-b border-white/[.065]">
         <div className="mx-auto max-w-7xl px-5 py-24 md:py-32">
           <ScrollReveal>
             <div className="mx-auto max-w-3xl text-center">
@@ -136,7 +138,7 @@ export default async function Home() {
                 <div className="feature-card h-full rounded-[28px] border border-white/8 bg-white/[.022] p-7">
                   <div className="grid size-11 place-items-center rounded-2xl border border-white/8 bg-white/[.04]"><Icon size={19} className="text-zinc-200" /></div>
                   <h3 className="mt-8 text-lg font-semibold tracking-tight text-white">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-zinc-600">{text}</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-400">{text}</p>
                 </div>
               </ScrollReveal>
             ))}
@@ -144,7 +146,8 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-24 md:py-32">
+      <section className="section-wash-rankings px-5 py-24 md:py-32">
+        <div className="mx-auto max-w-7xl">
         <ScrollReveal>
           <div className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div><div className="eyebrow">Community rankings</div><h2 className="section-title mt-3">What players pick right now.</h2></div>
@@ -157,15 +160,16 @@ export default async function Home() {
             {top.map((skin, index) => (
               <ScrollReveal key={skin.id} delay={(index % 3) * 55}>
                 <Link href={`/skins/${skin.slug}`} className="feature-card group flex min-h-28 items-center gap-4 rounded-[26px] border border-white/8 bg-white/[.022] p-4">
-                  <div className="w-8 text-center text-base font-semibold text-zinc-700">{String(index + 1).padStart(2, "0")}</div>
+                  <div className="w-8 text-center text-base font-semibold text-zinc-500">{String(index + 1).padStart(2, "0")}</div>
                   <div className="grid size-20 shrink-0 place-items-center rounded-2xl border border-white/[.03] bg-black/20">{skin.image_url ? <img src={skin.image_url} alt="" className="max-h-14 max-w-[76px] object-contain drop-shadow-[0_12px_18px_rgba(0,0,0,.5)] transition duration-500 group-hover:scale-105" /> : null}</div>
-                  <div className="min-w-0 flex-1"><div className="truncate font-semibold text-white">{skin.name}</div><div className="mt-1 text-xs text-zinc-600">{skin.battle_wins ?? 0} wins · {skin.likes ?? 0} upvotes</div></div>
-                  <div className="pr-1 text-right"><div className="text-2xl font-semibold tracking-tight text-white">{Number(skin.community_score ?? 50).toFixed(0)}</div><div className="text-[9px] uppercase tracking-[.18em] text-zinc-700">score</div></div>
+                  <div className="min-w-0 flex-1"><div className="truncate font-semibold text-white">{skin.name}</div><div className="mt-1 text-xs text-zinc-400">{skin.battle_wins ?? 0} wins · {skin.likes ?? 0} upvotes</div></div>
+                  <div className="pr-1 text-right"><div className="text-2xl font-semibold tracking-tight text-white">{Number(skin.community_score ?? 50).toFixed(0)}</div><div className="text-[9px] uppercase tracking-[.18em] text-zinc-500">score</div></div>
                 </Link>
               </ScrollReveal>
             ))}
           </div>
-        ) : <div className="rounded-[28px] border border-white/8 bg-white/[.02] p-7 text-sm text-zinc-500">Import skins and start voting to populate the ranking.</div>}
+        ) : <div className="rounded-[28px] border border-white/8 bg-white/[.02] p-7 text-sm text-zinc-400">Import skins and start voting to populate the ranking.</div>}
+        </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 pb-24 md:pb-32">
@@ -174,7 +178,7 @@ export default async function Home() {
             <div className="pointer-events-none absolute left-1/2 top-[-14rem] h-80 w-[42rem] -translate-x-1/2 rounded-full bg-blue-500/15 blur-[100px]" />
             <ShieldCheck className="relative mx-auto text-zinc-400" size={28} />
             <h2 className="relative mx-auto mt-5 max-w-3xl text-balance text-3xl font-semibold tracking-[-.045em] text-white md:text-5xl">The data helps. The final pick is still yours.</h2>
-            <p className="relative mx-auto mt-5 max-w-2xl text-sm leading-6 text-zinc-500 md:text-base">No fake “best skin” badge. SkinVersus shows community preference, item data and trade-offs — you decide what matters for your inventory.</p>
+            <p className="relative mx-auto mt-5 max-w-2xl text-sm leading-6 text-zinc-400 md:text-base">No fake “best skin” badge. SkinVersus shows community preference, item data and trade-offs — you decide what matters for your inventory.</p>
             <a href="#top" className="primary-button relative mt-8 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-bold">Start a comparison <ArrowRight size={16} /></a>
           </div>
         </ScrollReveal>

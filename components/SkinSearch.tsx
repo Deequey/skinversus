@@ -10,12 +10,16 @@ export function SkinSearch({
   onChange,
   placeholder = "Search weapon, finish or both…",
   hint = "Try “tiger tooth talon”",
+  autoFocus = false,
+  focusRequest = 0,
 }: {
   label: string;
   value: Skin | null;
   onChange: (skin: Skin | null) => void;
   placeholder?: string;
   hint?: string | null;
+  autoFocus?: boolean;
+  focusRequest?: number;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Skin[]>([]);
@@ -26,6 +30,14 @@ export function SkinSearch({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+
+  useEffect(() => {
+    if (!autoFocus || value) return;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [autoFocus, focusRequest, value]);
 
   useEffect(() => {
     function close(event: MouseEvent) {
@@ -83,8 +95,8 @@ export function SkinSearch({
   return (
     <div ref={rootRef} className="relative">
       <div className="mb-2.5 flex min-h-4 items-center justify-between gap-3 px-1">
-        <span className="text-[10px] font-semibold uppercase tracking-[.2em] text-zinc-500">{label}</span>
-        {!value && hint ? <span className="hidden text-[10px] text-zinc-700 sm:block">{hint}</span> : null}
+        <span className="text-[10px] font-semibold uppercase tracking-[.2em] text-zinc-400">{label}</span>
+        {!value && hint ? <span className="hidden text-[10px] text-zinc-500 sm:block">{hint}</span> : null}
       </div>
 
       {value ? (
@@ -120,9 +132,10 @@ export function SkinSearch({
         </div>
       ) : (
         <>
-          <div className="search-shell flex h-[76px] items-center gap-3 rounded-[24px] border border-white/10 bg-white/[.04] px-5 transition duration-300 focus-within:border-white/25 focus-within:bg-white/[.065] focus-within:shadow-[0_0_0_4px_rgba(255,255,255,.025),0_24px_70px_rgba(0,0,0,.28)]">
-            <Search size={18} className="shrink-0 text-zinc-500" />
+          <div className="search-shell flex h-[76px] items-center gap-3 rounded-[24px] border border-white/10 px-5 transition duration-300 focus-within:border-blue-300/35 focus-within:shadow-[0_0_0_4px_rgba(96,165,250,.07),0_24px_70px_rgba(0,0,0,.35)]">
+            <Search size={18} className="shrink-0 text-blue-300/80" />
             <input
+              ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => (results.length || query.trim().length >= 2) && setOpen(true)}
@@ -145,13 +158,13 @@ export function SkinSearch({
               placeholder={placeholder}
               autoComplete="off"
               spellCheck={false}
-              className="w-full bg-transparent text-[15px] font-medium text-white outline-none placeholder:text-zinc-600"
+              className="w-full bg-transparent text-[15px] font-medium text-white outline-none placeholder:text-zinc-500"
             />
-            {loading ? <div className="size-4 animate-spin rounded-full border-2 border-white/15 border-t-white/70" /> : <ChevronDown size={16} className={`text-zinc-600 transition ${open ? "rotate-180" : ""}`} />}
+            {loading ? <div className="size-4 animate-spin rounded-full border-2 border-white/15 border-t-white/70" /> : <ChevronDown size={16} className={`text-zinc-400 transition ${open ? "rotate-180" : ""}`} />}
           </div>
 
           {open ? (
-            <div ref={listRef} className="search-results absolute z-[70] mt-3 max-h-[430px] w-full overflow-y-auto rounded-[24px] border border-white/10 bg-[#101217]/96 p-2 shadow-[0_35px_110px_rgba(0,0,0,.72)] backdrop-blur-3xl">
+            <div ref={listRef} className="search-results absolute z-[70] mt-3 max-h-[430px] w-full overflow-y-auto rounded-[24px] border border-white/10 bg-[#0d1119]/98 p-2 shadow-[0_35px_110px_rgba(0,0,0,.72)] backdrop-blur-3xl">
               {results.length ? results.map((skin, index) => (
                 <button
                   key={skin.id}
@@ -168,10 +181,10 @@ export function SkinSearch({
                     <div className="truncate text-sm font-semibold text-white">{skin.name}</div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
                       <span>{skin.weapon_name ?? skin.category}</span>
-                      {skin.finish_name ? <><span className="text-zinc-700">•</span><span className="truncate">{skin.finish_name}</span></> : null}
+                      {skin.finish_name ? <><span className="text-zinc-600">•</span><span className="truncate">{skin.finish_name}</span></> : null}
                     </div>
                   </div>
-                  <span className="hidden items-center gap-1.5 rounded-full border border-white/8 px-2.5 py-1 text-[10px] font-medium text-zinc-500 sm:flex">
+                  <span className="hidden items-center gap-1.5 rounded-full border border-white/8 px-2.5 py-1 text-[10px] font-medium text-zinc-400 sm:flex">
                     {skin.rarity_color ? <span className="size-1.5 rounded-full" style={{ background: skin.rarity_color }} /> : null}
                     {skin.rarity_name ?? "Skin"}
                   </span>

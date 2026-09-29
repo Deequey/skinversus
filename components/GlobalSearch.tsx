@@ -8,12 +8,18 @@ import { SkinSearch } from "@/components/SkinSearch";
 export function GlobalSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [focusRequest, setFocusRequest] = useState(0);
+  const [shortcut, setShortcut] = useState("Ctrl");
 
   useEffect(() => {
+    const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent);
+    setShortcut(isMac ? "⌘" : "Ctrl");
+
     function onKey(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setOpen((value) => !value);
+        setOpen(true);
+        setFocusRequest((value) => value + 1);
       }
       if (event.key === "Escape") setOpen(false);
     }
@@ -28,31 +34,40 @@ export function GlobalSearch() {
     return () => { document.body.style.overflow = previous; };
   }, [open]);
 
+  function openSearch() {
+    setOpen(true);
+    setFocusRequest((value) => value + 1);
+  }
+
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="interactive hidden h-9 items-center gap-2 rounded-full border border-white/[.075] bg-white/[.035] px-3 text-xs text-zinc-500 transition hover:border-white/15 hover:bg-white/[.06] hover:text-zinc-200 sm:flex"
+        onClick={openSearch}
+        className="search-trigger interactive hidden h-10 min-w-[210px] items-center gap-2.5 rounded-full px-3.5 text-xs sm:flex"
+        aria-label="Search skins"
       >
-        <Search size={14} />
-        <span>Search</span>
-        <span className="ml-2 rounded-md border border-white/[.07] bg-black/20 px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">⌘K</span>
+        <Search size={15} className="text-blue-300" />
+        <span className="text-zinc-300">Search skins</span>
+        <span className="ml-auto flex items-center gap-1">
+          <kbd className="search-key">{shortcut}</kbd>
+          <kbd className="search-key">K</kbd>
+        </span>
       </button>
 
-      <button type="button" onClick={() => setOpen(true)} className="interactive grid size-9 place-items-center rounded-full border border-white/[.075] bg-white/[.035] text-zinc-400 sm:hidden" aria-label="Search skins">
+      <button type="button" onClick={openSearch} className="header-action interactive grid size-10 place-items-center rounded-full text-zinc-200 sm:hidden" aria-label="Search skins">
         <Search size={16} />
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 px-4 pt-[12vh] backdrop-blur-xl" onMouseDown={() => setOpen(false)}>
-          <div className="modal-in relative w-full max-w-2xl rounded-[30px] border border-white/12 bg-[#0d0f14]/98 p-4 shadow-[0_60px_180px_rgba(0,0,0,.8)] md:p-5" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between px-1">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-[#05060a]/78 px-4 pt-[10vh] backdrop-blur-2xl" onMouseDown={() => setOpen(false)}>
+          <div className="search-modal modal-in relative w-full max-w-2xl rounded-[30px] p-4 md:p-5" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between gap-5 px-1">
               <div>
-                <div className="text-xs font-semibold text-white">Search SkinVersus</div>
-                <div className="mt-1 text-[11px] text-zinc-600">Weapon + finish, in any order.</div>
+                <div className="flex items-center gap-2 text-sm font-semibold text-white"><Search size={15} className="text-blue-300" /> Search SkinVersus</div>
+                <div className="mt-1 text-[11px] text-zinc-400">Type a weapon, finish, or both. Results update instantly.</div>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="interactive grid size-9 place-items-center rounded-full border border-white/8 text-zinc-500 transition hover:bg-white/5 hover:text-white" aria-label="Close search"><X size={16} /></button>
+              <button type="button" onClick={() => setOpen(false)} className="header-action interactive grid size-9 place-items-center rounded-full text-zinc-300" aria-label="Close search"><X size={16} /></button>
             </div>
             <SkinSearch
               label="Find any CS2 skin"
@@ -64,8 +79,10 @@ export function GlobalSearch() {
               }}
               hint="deagle printstream · m9 doppler · tiger tooth talon"
               placeholder="Search any skin…"
+              autoFocus
+              focusRequest={focusRequest}
             />
-            <div className="mt-4 flex items-center justify-between px-1 text-[10px] text-zinc-700">
+            <div className="mt-4 flex items-center justify-between px-1 text-[10px] text-zinc-500">
               <span>↑↓ navigate · Enter open</span><span>Esc close</span>
             </div>
           </div>

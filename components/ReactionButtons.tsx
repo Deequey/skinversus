@@ -61,15 +61,15 @@ export function ReactionButtons({ slug, likes, dislikes }: { slug: string; likes
   return (
     <div className="rounded-[28px] border border-white/8 bg-white/[.025] p-4">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <div><div className="text-[10px] font-semibold uppercase tracking-[.18em] text-zinc-600">Community approval</div><div className="mt-1 text-sm text-zinc-400">Would you own this skin?</div></div>
-        <div className="text-right"><div className="text-2xl font-semibold tracking-tight text-white">{approval}%</div><div className="text-[9px] uppercase tracking-[.18em] text-zinc-700">positive</div></div>
+        <div><div className="text-[10px] font-semibold uppercase tracking-[.18em] text-zinc-400">Community approval</div><div className="mt-1 text-sm text-zinc-400">Would you own this skin?</div></div>
+        <div className="text-right"><div className="text-2xl font-semibold tracking-tight text-white">{approval}%</div><div className="text-[9px] uppercase tracking-[.18em] text-zinc-500">positive</div></div>
       </div>
       <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-rose-400/10"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all duration-500" style={{ width: `${approval}%` }} /></div>
       <div className="grid grid-cols-2 gap-3">
-        <button disabled={busy} onClick={() => react(1)} className={`interactive flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold transition ${choice === 1 ? "border-emerald-300/30 bg-emerald-300/12 text-emerald-200" : "border-white/8 bg-white/[.025] text-zinc-400 hover:bg-white/[.055] hover:text-white"}`}>
+        <button disabled={busy} onClick={() => react(1)} className={`interactive flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold transition ${choice === 1 ? "border-emerald-300/30 bg-emerald-300/12 text-emerald-200" : "border-white/8 bg-white/[.025] text-zinc-300 hover:border-emerald-300/20 hover:bg-emerald-300/[.07] hover:text-white"}`}>
           <ThumbsUp size={17} /> Upvote <span className="text-xs opacity-60">{localLikes.toLocaleString()}</span>
         </button>
-        <button disabled={busy} onClick={() => react(-1)} className={`interactive flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold transition ${choice === -1 ? "border-rose-300/30 bg-rose-300/10 text-rose-200" : "border-white/8 bg-white/[.025] text-zinc-400 hover:bg-white/[.055] hover:text-white"}`}>
+        <button disabled={busy} onClick={() => react(-1)} className={`interactive flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold transition ${choice === -1 ? "border-rose-300/30 bg-rose-300/10 text-rose-200" : "border-white/8 bg-white/[.025] text-zinc-300 hover:border-rose-300/20 hover:bg-rose-300/[.06] hover:text-white"}`}>
           <ThumbsDown size={17} /> Downvote <span className="text-xs opacity-60">{localDislikes.toLocaleString()}</span>
         </button>
       </div>

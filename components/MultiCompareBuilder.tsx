@@ -37,7 +37,7 @@ export function MultiCompareBuilder() {
         {slots.map((skin, index) => (
           <div key={index} className="relative">
             {slots.length > 2 ? (
-              <button type="button" onClick={() => removeSlot(index)} className="interactive absolute -right-1 -top-1 z-30 grid size-8 place-items-center rounded-full border border-white/10 bg-[#15171d] text-zinc-500 shadow-xl transition hover:text-white" aria-label="Remove slot">
+              <button type="button" onClick={() => removeSlot(index)} className="interactive absolute -right-1 -top-1 z-30 grid size-8 place-items-center rounded-full border border-white/10 bg-[#151922] text-zinc-300 shadow-xl transition hover:text-white" aria-label="Remove slot">
                 <X size={13} />
               </button>
             ) : null}
@@ -49,7 +49,7 @@ export function MultiCompareBuilder() {
       {hasDuplicates ? <p className="mt-4 text-center text-xs text-rose-300">Choose different skins for each slot.</p> : null}
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button type="button" disabled={slots.length >= 4} onClick={addSlot} className="interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[.025] px-5 text-sm font-medium text-zinc-400 transition hover:bg-white/[.055] hover:text-white disabled:cursor-not-allowed disabled:opacity-30">
+        <button type="button" disabled={slots.length >= 4} onClick={addSlot} className="interactive inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[.045] px-5 text-sm font-semibold text-zinc-200 transition hover:border-blue-300/25 hover:bg-blue-300/[.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-30">
           <Plus size={15} /> Add another skin
         </button>
         <button type="button" disabled={!ready} onClick={compare} className="primary-button group inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-25">
