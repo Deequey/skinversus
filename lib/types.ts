@@ -40,3 +40,37 @@ export type PlatformStats = {
   reviews: number;
   reactions: number;
 };
+
+export type SkinColor = {
+  id: string;
+  skin_id: string;
+  hex: string;
+  percentage: number | null;
+  color_name: string;
+  is_primary: boolean;
+  source: "auto" | "manual";
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type SkinNoteType = "float_tip" | "pattern_tip" | "combo_tip" | "rare_variant" | "warning" | "fun_fact";
+
+export type SkinNote = {
+  id: string;
+  skin_id: string;
+  type: SkinNoteType;
+  title: string;
+  content: string;
+  min_float: number | null;
+  max_float: number | null;
+  priority: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ComboMatch = {
+  skin: RankedSkin;
+  colors: SkinColor[];
+  match_score: number;
+};

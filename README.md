@@ -168,3 +168,79 @@ The app is a strong MVP, but anonymous voting still needs production anti-abuse 
 ## Important product principle
 
 The community score is a preference signal, not an investment rating. The UI deliberately shows the data and trade-offs instead of declaring an objective "best" skin.
+
+## Skin intelligence, palettes and Combo Finder
+
+This build adds three connected systems:
+
+- `skin_notes` — admin-authored float tips, pattern notes, combo advice, rare variants, warnings and facts.
+- `skin_colors` — automatic image palettes plus optional manual overrides.
+- `/combos` — color-based knife/glove matching using perceptual palette distance.
+
+### Upgrade an existing Supabase project
+
+If your SkinVersus database already exists, do **not** recreate it. Run this migration once in Supabase SQL Editor:
+
+```text
+supabase/migrations/20260929_skin_intelligence.sql
+```
+
+Then make your account an admin. Replace the email with the account you use to sign in:
+
+```sql
+update public.profiles p
+set is_admin = true
+from auth.users u
+where p.id = u.id
+  and u.email = 'you@example.com';
+```
+
+After refreshing SkinVersus, an **Admin** link appears in the desktop navigation.
+
+### Admin workflow
+
+Open:
+
+```text
+/admin
+```
+
+Choose a skin. From the editor you can:
+
+- click **Analyze image** to generate its automatic 5-color palette;
+- add manual colors (any manual palette overrides the automatic palette publicly);
+- clear the manual override to return to automatic colors;
+- add or delete float tips, pattern tips, combo tips, rare variants, warnings and facts.
+
+### Batch color analysis
+
+The admin button is convenient for individual skins. To populate palettes in bulk, run:
+
+```bash
+npm run analyze:colors
+```
+
+Useful variants:
+
+```bash
+npm run analyze:colors -- --limit=100
+npm run analyze:colors -- --force
+```
+
+`--force` replaces existing automatic palettes but keeps manual overrides.
+
+To import skins and then analyze palettes:
+
+```bash
+npm run sync:skins
+```
+
+The batch analyzer requires `SUPABASE_SERVICE_ROLE_KEY` locally. Do not expose that key in client-side code.
+
+## Additional routes
+
+```text
+/combos                       palette-based combo finder
+/admin                        admin skin editor
+/admin/skins/[slug]           notes + palette editor for one skin
+```

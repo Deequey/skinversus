@@ -10,7 +10,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "import:skins": "node --env-file=.env.local scripts/import-skins.mjs"
+    "import:skins": "node --env-file=.env.local scripts/import-skins.mjs",
+    "analyze:colors": "node --env-file=.env.local scripts/analyze-skin-colors.mjs",
+    "sync:skins": "npm run import:skins && npm run analyze:colors"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -19,7 +21,8 @@
     "next": "16.3.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.2"
+    "zod": "4.6.2",
+    "sharp": "^0.34.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.0",

@@ -5,6 +5,7 @@ import {
   BarChart3,
   Layers3,
   MessageSquare,
+  Palette,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -96,6 +97,25 @@ export default async function Home() {
       </section>
 
       <section className="border-y border-white/[.055] bg-white/[.01]">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-24 md:py-32 lg:grid-cols-[.82fr_1.18fr] lg:items-center">
+          <ScrollReveal>
+            <div>
+              <div className="eyebrow">Palette intelligence</div>
+              <h2 className="section-title mt-4">Build knife + glove combos by color.</h2>
+              <p className="section-copy mt-5 max-w-xl">SkinVersus can analyze dominant colors from skin artwork, translate them into readable color families and rank compatible knives or gloves by perceptual palette similarity.</p>
+              <Link href="/combos" className="primary-button mt-7 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-bold">Open Combo Finder <ArrowRight size={16}/></Link>
+            </div>
+          </ScrollReveal>
+          <ScrollReveal delay={90}>
+            <div className="glass-panel rounded-[34px] p-6 md:p-8">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Palette size={18} className="text-fuchsia-300"/> What the palette system adds</div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">{[["Auto colors", "Extract dominant colors once and save them in Supabase."],["Manual override", "Correct tricky skins without changing application code."],["Combo score", "Match palettes using perceptual distance instead of raw HEX equality."],["Skin insights", "Add float, pattern and combo tips from the admin panel."]].map(([title,copy]) => <div key={title} className="rounded-[20px] border border-white/[.06] bg-black/15 p-4"><div className="text-sm font-semibold text-white">{title}</div><p className="mt-2 text-xs leading-5 text-zinc-600">{copy}</p></div>)}</div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      <section className="border-b border-white/[.055] bg-white/[.01]">
         <div className="mx-auto max-w-7xl px-5 py-24 md:py-32">
           <ScrollReveal>
             <div className="mx-auto max-w-3xl text-center">

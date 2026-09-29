@@ -11,6 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: base, changeFrequency: "daily", priority: 1 },
     { url: `${base}/rankings`, changeFrequency: "daily", priority: 0.8 },
+    { url: `${base}/combos`, changeFrequency: "weekly", priority: 0.8 },
     ...(data ?? []).map((skin) => ({
       url: `${base}/skins/${skin.slug}`,
       lastModified: skin.updated_at ? new Date(skin.updated_at) : undefined,

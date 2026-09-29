@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Layers3 } from "lucide-react";
 import { ShareButton } from "@/components/ShareButton";
-import { getRankedSkinsBySlugs } from "@/lib/data";
+import { ColorPalette } from "@/components/ColorPalette";
+import { getRankedSkinsBySlugs, getSkinColors } from "@/lib/data";
 import type { RankedSkin } from "@/lib/types";
 import { approvalPct, formatPrice } from "@/lib/utils";
 
@@ -20,6 +21,8 @@ export default async function MultiComparePage({ searchParams }: Props) {
   const raw = Array.isArray(params.skins) ? params.skins.join(",") : params.skins ?? "";
   const slugs = [...new Set(raw.split(",").map((slug) => slug.trim()).filter(Boolean))].slice(0, 4);
   const skins = await getRankedSkinsBySlugs(slugs);
+  const paletteEntries = await Promise.all(skins.map(async (skin) => [skin.id, await getSkinColors(skin.id)] as const));
+  const paletteById = new Map(paletteEntries);
 
   if (skins.length < 2) {
     return (
@@ -41,6 +44,7 @@ export default async function MultiComparePage({ searchParams }: Props) {
     { label: "Downvotes", value: (skin) => Number(skin.dislikes ?? 0).toLocaleString() },
     { label: "Battle record", value: (skin) => `${Number(skin.battle_wins ?? 0).toLocaleString()} / ${Number(skin.battle_votes ?? 0).toLocaleString()}` },
     { label: "Tracked price", value: (skin) => formatPrice(skin.price_usd) },
+    { label: "Dominant colors", value: (skin) => <ColorPalette colors={paletteById.get(skin.id) ?? []} compact /> },
     { label: "Weapon", value: (skin) => skin.weapon_name ?? "—" },
     { label: "Finish", value: (skin) => skin.finish_name ?? "—" },
     { label: "Rarity", value: (skin) => skin.rarity_name ?? "—" },

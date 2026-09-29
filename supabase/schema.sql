@@ -3,6 +3,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text not null unique,
+  is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -50,6 +51,49 @@ create table if not exists public.skins (
 create index if not exists skins_name_idx on public.skins using gin (to_tsvector('simple', name));
 create index if not exists skins_weapon_idx on public.skins (weapon_name);
 
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and is_admin = true);
+$$;
+
+grant execute on function public.is_admin() to authenticated;
+
+create table if not exists public.skin_colors (
+  id uuid primary key default gen_random_uuid(),
+  skin_id uuid not null references public.skins(id) on delete cascade,
+  hex text not null check (hex ~ '^#[0-9A-Fa-f]{6}$'),
+  percentage smallint check (percentage between 1 and 100),
+  color_name text not null,
+  is_primary boolean not null default false,
+  source text not null default 'auto' check (source in ('auto', 'manual')),
+  sort_order smallint not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (skin_id, source, sort_order)
+);
+
+create table if not exists public.skin_notes (
+  id uuid primary key default gen_random_uuid(),
+  skin_id uuid not null references public.skins(id) on delete cascade,
+  type text not null check (type in ('float_tip', 'pattern_tip', 'combo_tip', 'rare_variant', 'warning', 'fun_fact')),
+  title text not null check (char_length(title) between 2 and 120),
+  content text not null check (char_length(content) between 3 and 1200),
+  min_float double precision check (min_float is null or (min_float >= 0 and min_float <= 1)),
+  max_float double precision check (max_float is null or (max_float >= 0 and max_float <= 1)),
+  priority integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint skin_note_float_order check (min_float is null or max_float is null or min_float <= max_float)
+);
+
+create index if not exists skin_colors_skin_id_idx on public.skin_colors(skin_id);
+create index if not exists skin_notes_skin_id_idx on public.skin_notes(skin_id);
+
 create table if not exists public.comparisons (
   id uuid primary key default gen_random_uuid(),
   pair_key text not null unique,
@@ -96,6 +140,8 @@ alter table public.comparisons enable row level security;
 alter table public.votes enable row level security;
 alter table public.skin_reactions enable row level security;
 alter table public.reviews enable row level security;
+alter table public.skin_colors enable row level security;
+alter table public.skin_notes enable row level security;
 
 create policy "profiles readable" on public.profiles for select to anon, authenticated using (true);
 create policy "skins readable" on public.skins for select to anon, authenticated using (true);
@@ -103,6 +149,10 @@ create policy "comparisons readable" on public.comparisons for select to anon, a
 create policy "votes readable" on public.votes for select to anon, authenticated using (true);
 create policy "reactions readable" on public.skin_reactions for select to anon, authenticated using (true);
 create policy "reviews readable" on public.reviews for select to anon, authenticated using (true);
+create policy "skin colors readable" on public.skin_colors for select to anon, authenticated using (true);
+create policy "skin notes readable" on public.skin_notes for select to anon, authenticated using (true);
+create policy "admins manage skin colors" on public.skin_colors for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "admins manage skin notes" on public.skin_notes for all to authenticated using (public.is_admin()) with check (public.is_admin());
 create policy "users insert own review" on public.reviews for insert to authenticated with check (auth.uid() = user_id);
 create policy "users update own review" on public.reviews for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "users delete own review" on public.reviews for delete to authenticated using (auth.uid() = user_id);

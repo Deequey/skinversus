@@ -4,10 +4,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BarChart3, Check, MessageSquare, Swords } from "lucide-react";
 import { CompareFromSkin } from "@/components/CompareFromSkin";
+import { ColorPalette } from "@/components/ColorPalette";
+import { ComboMatchCard } from "@/components/ComboMatchCard";
+import { SkinInsights } from "@/components/SkinInsights";
 import { ReactionButtons } from "@/components/ReactionButtons";
 import { ReviewForm } from "@/components/ReviewForm";
 import { ShareButton } from "@/components/ShareButton";
-import { getRankedSkinBySlug, getRecentReviews, getRelatedSkins, getReviewStats, getSkinBySlug } from "@/lib/data";
+import { getComboMatchesForSkin, getRankedSkinBySlug, getRecentReviews, getRelatedSkins, getReviewStats, getSkinBySlug, getSkinColors, getSkinNotes } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { approvalPct, formatPrice } from "@/lib/utils";
 
@@ -25,14 +28,17 @@ export default async function SkinPage({ params }: Props) {
   const { slug } = await params;
   const ranked = await getRankedSkinBySlug(slug);
   const skin = ranked ?? await getSkinBySlug(slug);
-  if (!skin) notFound();
+  if (!skin) return notFound();
 
   const supabase = await createClient();
-  const [auth, reviews, reviewStats, related] = await Promise.all([
+  const [auth, reviews, reviewStats, related, colors, notes, comboMatches] = await Promise.all([
     supabase.auth.getClaims(),
     getRecentReviews(skin.id),
     getReviewStats(skin.id),
     getRelatedSkins(skin.weapon_name, skin.id, 4),
+    getSkinColors(skin.id),
+    getSkinNotes(skin.id),
+    getComboMatchesForSkin(skin, 4),
   ]);
 
   const signedIn = Boolean(auth.data?.claims?.sub);
@@ -87,6 +93,8 @@ export default async function SkinPage({ params }: Props) {
               ].map(([k, v]) => <div key={k} className="flex justify-between gap-6 border-b border-white/[.055] pb-3 last:border-0"><dt className="text-zinc-600">{k}</dt><dd className="font-medium text-zinc-300">{v === "Available" ? <span className="inline-flex items-center gap-1 text-emerald-300"><Check size={13}/>{v}</span> : v}</dd></div>)}
             </dl>
           </div>
+          <ColorPalette colors={colors} />
+          <SkinInsights notes={notes} />
           <CompareFromSkin skin={skin} />
         </div>
 
@@ -103,6 +111,16 @@ export default async function SkinPage({ params }: Props) {
           </div>
         </div>
       </section>
+
+      {comboMatches.length ? (
+        <section className="mt-20">
+          <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div><div className="eyebrow">Color combo</div><h2 className="mt-3 text-3xl font-semibold tracking-[-.045em] text-white">Matches built around this palette.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">Suggestions are based on perceptual color similarity between analyzed skin palettes.</p></div>
+            <Link href={`/combos?skin=${skin.slug}`} className="interactive inline-flex items-center justify-center rounded-full border border-white/10 px-4 py-2.5 text-xs font-semibold text-zinc-300 transition hover:bg-white/[.05] hover:text-white">Open Combo Finder</Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{comboMatches.map((match) => <ComboMatchCard key={match.skin.id} match={match} />)}</div>
+        </section>
+      ) : null}
 
       {related.length ? (
         <section className="mt-20">

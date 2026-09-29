@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CircleUserRound, Layers3, Swords, Trophy } from "lucide-react";
+import { CircleUserRound, Layers3, Palette, Shield, Swords, Trophy } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { GlobalSearch } from "@/components/GlobalSearch";
 
@@ -7,6 +7,9 @@ export async function Header() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims?.sub);
+  const userId = data?.claims?.sub;
+  const { data: profile } = userId ? await supabase.from("profiles").select("is_admin").eq("id", userId).maybeSingle() : { data: null };
+  const isAdmin = Boolean(profile?.is_admin);
 
   return (
     <header id="top" className="site-header sticky top-0 z-50 border-b border-white/[.055]">
@@ -20,6 +23,8 @@ export async function Header() {
           <Link className="nav-pill" href="/">Compare</Link>
           <Link className="nav-pill inline-flex items-center gap-1.5" href="/#multi-compare"><Layers3 size={13} /> Multi</Link>
           <Link className="nav-pill inline-flex items-center gap-1.5" href="/rankings"><Trophy size={13} /> Rankings</Link>
+          <Link className="nav-pill inline-flex items-center gap-1.5" href="/combos"><Palette size={13} /> Combos</Link>
+          {isAdmin ? <Link className="nav-pill inline-flex items-center gap-1.5" href="/admin"><Shield size={13} /> Admin</Link> : null}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
