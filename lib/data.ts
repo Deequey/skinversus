@@ -133,31 +133,51 @@ export async function getComboMatchesForSkin(skin: Skin, limit = 8): Promise<Com
 
   const supabase = await createClient();
   const target = comboTargetFilter(skin);
-  let query = supabase.from("skin_rankings").select("*").neq("id", skin.id);
+  const candidatePageSize = 400;
+  const ranked: RankedSkin[] = [];
+  let from = 0;
 
-  if (target === "glove") {
-    query = query.or("category.ilike.%glove%,weapon_name.ilike.%glove%");
-  } else if (target === "knife") {
-    query = query.or("category.ilike.%knife%,weapon_name.ilike.%knife%,weapon_name.ilike.%bayonet%,weapon_name.ilike.%karambit%,weapon_name.ilike.%daggers%");
-  } else {
-    query = query.or("category.ilike.%glove%,weapon_name.ilike.%glove%,category.ilike.%knife%,weapon_name.ilike.%knife%,weapon_name.ilike.%bayonet%,weapon_name.ilike.%karambit%,weapon_name.ilike.%daggers%");
+  while (true) {
+    let query = supabase
+      .from("skin_rankings")
+      .select("*")
+      .neq("id", skin.id)
+      .order("id", { ascending: true });
+
+    if (target === "glove") {
+      query = query.or("category.ilike.%glove%,weapon_name.ilike.%glove%");
+    } else if (target === "knife") {
+      query = query.or("category.ilike.%knife%,weapon_name.ilike.%knife%,weapon_name.ilike.%bayonet%,weapon_name.ilike.%karambit%,weapon_name.ilike.%daggers%");
+    } else {
+      query = query.or("category.ilike.%glove%,weapon_name.ilike.%glove%,category.ilike.%knife%,weapon_name.ilike.%knife%,weapon_name.ilike.%bayonet%,weapon_name.ilike.%karambit%,weapon_name.ilike.%daggers%");
+    }
+
+    const { data, error } = await query.range(from, from + candidatePageSize - 1);
+    if (error) throw error;
+    const page = (data as RankedSkin[] | null) ?? [];
+    ranked.push(...page);
+    if (page.length < candidatePageSize) break;
+    from += candidatePageSize;
   }
 
-  const { data: candidates } = await query.limit(900);
-  const ranked = (candidates as RankedSkin[] | null) ?? [];
   if (!ranked.length) return [];
 
-  const ids = ranked.map((candidate) => candidate.id);
-  const { data: colorRows } = await supabase
-    .from("skin_colors")
-    .select("*")
-    .in("skin_id", ids);
-
   const grouped = new Map<string, SkinColor[]>();
-  for (const color of ((colorRows as SkinColor[] | null) ?? [])) {
-    const list = grouped.get(color.skin_id) ?? [];
-    list.push(color);
-    grouped.set(color.skin_id, list);
+  const colorChunkSize = 80;
+
+  for (let i = 0; i < ranked.length; i += colorChunkSize) {
+    const ids = ranked.slice(i, i + colorChunkSize).map((candidate) => candidate.id);
+    const { data: colorRows, error } = await supabase
+      .from("skin_colors")
+      .select("*")
+      .in("skin_id", ids);
+    if (error) throw error;
+
+    for (const color of ((colorRows as SkinColor[] | null) ?? [])) {
+      const list = grouped.get(color.skin_id) ?? [];
+      list.push(color);
+      grouped.set(color.skin_id, list);
+    }
   }
 
   return ranked
