@@ -27,9 +27,9 @@ export async function analyzeColorsAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   if (!skinId || !slug) throw new Error("Missing skin");
   const supabase = await adminClient();
-  const { data: skin } = await supabase.from("skins").select("image_url").eq("id", skinId).maybeSingle();
+  const { data: skin } = await supabase.from("skins").select("image_url,name,weapon_name,category").eq("id", skinId).maybeSingle();
   if (!skin?.image_url) throw new Error("Skin image is unavailable");
-  const colors = await analyzeSkinImage(skin.image_url);
+  const colors = await analyzeSkinImage(skin.image_url, skin);
   const { error: deleteError } = await supabase.from("skin_colors").delete().eq("skin_id", skinId).eq("source", "auto");
   if (deleteError) throw deleteError;
   if (colors.length) {
