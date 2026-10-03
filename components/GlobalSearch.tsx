@@ -77,7 +77,6 @@ export function GlobalSearch() {
                 setOpen(false);
                 router.push(`/skins/${skin.slug}`);
               }}
-              hint="deagle printstream · m9 doppler · tiger tooth talon"
               placeholder="Search any skin…"
               autoFocus
               focusRequest={focusRequest}

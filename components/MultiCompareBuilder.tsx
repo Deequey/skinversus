@@ -41,7 +41,7 @@ export function MultiCompareBuilder() {
                 <X size={13} />
               </button>
             ) : null}
-            <SkinSearch label={`Skin ${index + 1}`} value={skin} onChange={(value) => updateSlot(index, value)} hint={index === 0 ? "Build a shortlist of up to four" : null} />
+            <SkinSearch label={`Skin ${index + 1}`} value={skin} onChange={(value) => updateSlot(index, value)} />
           </div>
         ))}
       </div>
