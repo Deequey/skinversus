@@ -9,7 +9,6 @@ export function SkinSearch({
   value,
   onChange,
   placeholder = "Search weapon, finish or both…",
-  hint = "Try “tiger tooth talon”",
   autoFocus = false,
   focusRequest = 0,
 }: {
@@ -17,7 +16,7 @@ export function SkinSearch({
   value: Skin | null;
   onChange: (skin: Skin | null) => void;
   placeholder?: string;
-  hint?: string | null;
+
   autoFocus?: boolean;
   focusRequest?: number;
 }) {
@@ -102,7 +101,6 @@ export function SkinSearch({
     <div ref={rootRef} className="relative">
       <div className="mb-2.5 flex min-h-4 items-center justify-between gap-3 px-1">
         <span className="text-[10px] font-semibold uppercase tracking-[.2em] text-zinc-400">{label}</span>
-        {!value && hint ? <span className="hidden text-[10px] text-zinc-500 sm:block">{hint}</span> : null}
       </div>
 
       {value ? (

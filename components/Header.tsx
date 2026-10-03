@@ -31,9 +31,6 @@ export async function Header() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2.5">
-          <div className="hidden items-center gap-2 rounded-full border border-emerald-300/10 bg-emerald-300/[.035] px-3 py-2 text-[9px] font-bold uppercase tracking-[.18em] text-emerald-200/75 xl:flex">
-            <span className="live-dot" /> Live database
-          </div>
           <GlobalSearch />
           {signedIn ? (
             <form action="/auth/sign-out" method="post">
