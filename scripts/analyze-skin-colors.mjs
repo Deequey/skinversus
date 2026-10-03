@@ -39,8 +39,11 @@ function family(hex) {
   }
 
   if (l < 0.13) return "Black";
-  if (l > 0.9 && s < 0.12) return "White";
-  if (s < 0.11) return l > 0.68 ? "Silver" : "Gray";
+  if (s < 0.12) {
+    if (l > 0.82) return "White";
+    if (l > 0.62) return "Silver";
+    return "Gray";
+  }
   if (h < 12 || h >= 350) return l < 0.36 ? "Burgundy" : "Red";
   if (h < 28) return l < 0.38 ? "Brown" : "Orange";
   if (h < 46) return l < 0.48 ? "Brown" : l > 0.68 ? "Tan" : "Gold";
@@ -59,6 +62,7 @@ const hexByte = (value) => Math.round(Math.max(0, Math.min(255, value))).toStrin
 const dist = (a, b) => Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
+const NEUTRAL_FAMILIES = new Set(["Black", "White", "Silver", "Gray"]);
 
 function smoothstep(edge0, edge1, value) {
   const t = clamp((value - edge0) / (edge1 - edge0));
@@ -107,13 +111,13 @@ function visualWeight(sample, vividRatio, kind) {
   if (sample.saturation < 0.14 && sample.lightness < 0.16) {
     neutralFactor = Math.max(neutralFactor, kind === "glove" ? 0.36 : 0.42);
   }
-  if (sample.saturation < 0.12 && sample.lightness > 0.82) {
-    neutralFactor = Math.max(neutralFactor, 0.34);
+  if (sample.saturation < 0.12 && sample.lightness > 0.78) {
+    neutralFactor = Math.max(neutralFactor, kind === "glove" ? 0.34 : 0.48);
   }
 
   const saturationBoost = 0.9 + 2.6 * Math.pow(sample.saturation, 1.35);
-  const extremeLightPenalty = sample.lightness < 0.04 ? 0.5 : sample.lightness > 0.96 ? 0.62 : 1;
-  return alphaWeight * neutralFactor * saturationBoost * extremeLightPenalty;
+  const extremeDarkPenalty = sample.lightness < 0.035 ? 0.52 : 1;
+  return alphaWeight * neutralFactor * saturationBoost * extremeDarkPenalty;
 }
 
 function bucketHex(bucket) {
@@ -130,8 +134,12 @@ function mergeBuckets(entries) {
 
     for (let i = 0; i < clusters.length; i += 1) {
       const clusterFamily = family(bucketHex(clusters[i]));
-      const bothNeutral = ["Gray", "Silver", "White"].includes(entryFamily) && ["Gray", "Silver", "White"].includes(clusterFamily);
-      const threshold = bothNeutral ? 62 : 42;
+      const sameFamily = entryFamily === clusterFamily;
+      const entryNeutral = NEUTRAL_FAMILIES.has(entryFamily);
+      const clusterNeutral = NEUTRAL_FAMILIES.has(clusterFamily);
+      if (entryNeutral && clusterNeutral && !sameFamily) continue;
+
+      const threshold = sameFamily ? (entryNeutral ? 54 : 46) : 26;
       const d = dist(entry, clusters[i]);
       if (d < threshold && d < nearestDistance) {
         nearestDistance = d;
@@ -156,7 +164,85 @@ function mergeBuckets(entries) {
     current.score = combinedScore;
   }
 
-  return clusters.sort((a, b) => b.score - a.score);
+  return clusters;
+}
+
+function rankClusters(clusters, vividRatio) {
+  const totalArea = clusters.reduce((sum, cluster) => sum + cluster.area, 0) || 1;
+  const totalScore = clusters.reduce((sum, cluster) => sum + cluster.score, 0) || 1;
+
+  return clusters
+    .map((cluster) => {
+      const colorFamily = family(bucketHex(cluster));
+      const areaShare = cluster.area / totalArea;
+      const salienceShare = cluster.score / totalScore;
+      let combined;
+
+      if (colorFamily === "White" || colorFamily === "Silver") {
+        combined = salienceShare * 0.54 + areaShare * 0.46;
+        if (areaShare >= 0.12) combined += 0.025;
+      } else if (colorFamily === "Gray") {
+        combined = vividRatio >= 0.08
+          ? salienceShare * 0.8 + areaShare * 0.2
+          : salienceShare * 0.58 + areaShare * 0.42;
+      } else if (colorFamily === "Black") {
+        combined = vividRatio >= 0.08
+          ? salienceShare * 0.72 + areaShare * 0.28
+          : salienceShare * 0.55 + areaShare * 0.45;
+      } else {
+        combined = salienceShare * 0.76 + areaShare * 0.24;
+      }
+
+      return { ...cluster, family: colorFamily, areaShare, salienceShare, combined };
+    })
+    .sort((a, b) => b.combined - a.combined);
+}
+
+function tooSimilar(candidate, selected) {
+  return selected.some((other) => {
+    if (candidate.family === other.family) return dist(candidate, other) < (NEUTRAL_FAMILIES.has(candidate.family) ? 54 : 40);
+    return dist(candidate, other) < 22;
+  });
+}
+
+function pickPalette(clusters, vividRatio) {
+  const picked = [];
+  const add = (candidate) => {
+    if (!candidate || picked.includes(candidate) || tooSimilar(candidate, picked) || picked.length >= 5) return;
+    picked.push(candidate);
+  };
+
+  if (vividRatio >= 0.035) {
+    const accentFamilies = new Set();
+    for (const candidate of clusters) {
+      if (NEUTRAL_FAMILIES.has(candidate.family)) continue;
+      if (candidate.salienceShare < 0.018 && candidate.areaShare < 0.006) continue;
+      if (accentFamilies.has(candidate.family)) continue;
+      add(candidate);
+      accentFamilies.add(candidate.family);
+      if (accentFamilies.size >= 3 || picked.length >= 3) break;
+    }
+  }
+
+  const coverageNeutrals = clusters
+    .filter((candidate) => NEUTRAL_FAMILIES.has(candidate.family) && candidate.areaShare >= 0.075)
+    .sort((a, b) => b.areaShare - a.areaShare);
+  for (const candidate of coverageNeutrals.slice(0, 2)) add(candidate);
+
+  for (const candidate of clusters) {
+    add(candidate);
+    if (picked.length >= 5) break;
+  }
+
+  if (!picked.length) return [];
+  const strongestAccent = picked
+    .filter((candidate) => !NEUTRAL_FAMILIES.has(candidate.family))
+    .sort((a, b) => b.salienceShare - a.salienceShare)[0];
+  const primary = strongestAccent && vividRatio >= 0.035
+    ? strongestAccent
+    : [...picked].sort((a, b) => b.combined - a.combined)[0];
+
+  return [primary, ...picked.filter((candidate) => candidate !== primary).sort((a, b) => b.combined - a.combined)];
 }
 
 function normalizePercentages(scores) {
@@ -209,7 +295,7 @@ async function analyze(imageUrl, context = {}) {
   const kind = detectItemKind(context);
   const { data, info } = await sharp(input)
     .ensureAlpha()
-    .resize({ width: 160, height: 160, fit: "inside", withoutEnlargement: true })
+    .resize({ width: 176, height: 176, fit: "inside", withoutEnlargement: true })
     .raw()
     .toBuffer({ resolveWithObject: true });
 
@@ -225,11 +311,9 @@ async function analyze(imageUrl, context = {}) {
     if (a < 72) continue;
 
     const { saturation, lightness } = rgbStats(r, g, b);
-    if (lightness > 0.965 && saturation < 0.035) continue;
-
     const alphaWeight = a / 255;
     objectArea += alphaWeight;
-    if (saturation >= 0.22 && lightness >= 0.07 && lightness <= 0.94) vividArea += alphaWeight;
+    if (saturation >= 0.2 && lightness >= 0.06 && lightness <= 0.96) vividArea += alphaWeight;
     samples.push({ r, g, b, a, saturation, lightness });
   }
 
@@ -237,7 +321,7 @@ async function analyze(imageUrl, context = {}) {
 
   const vividRatio = vividArea / Math.max(1, objectArea);
   const buckets = new Map();
-  const step = 24;
+  const step = 22;
 
   for (const sample of samples) {
     const score = visualWeight(sample, vividRatio, kind);
@@ -264,26 +348,13 @@ async function analyze(imageUrl, context = {}) {
       area: entry.area,
       saturation: entry.saturation / entry.score,
       lightness: entry.lightness / entry.score,
-    }))
-    .sort((a, b) => b.score - a.score);
+    }));
 
-  const clusters = mergeBuckets(ranked);
-  const picked = [];
-
-  for (const cluster of clusters) {
-    const colorFamily = family(bucketHex(cluster));
-    const tooSimilar = picked.some((selected) => {
-      const selectedFamily = family(bucketHex(selected));
-      const bothNeutral = ["Gray", "Silver", "White"].includes(colorFamily) && ["Gray", "Silver", "White"].includes(selectedFamily);
-      return dist(cluster, selected) < (bothNeutral ? 72 : 38);
-    });
-    if (!tooSimilar) picked.push(cluster);
-    if (picked.length >= 5) break;
-  }
-
+  const clusters = rankClusters(mergeBuckets(ranked), vividRatio);
+  const picked = pickPalette(clusters, vividRatio);
   if (!picked.length) throw new Error("no usable color clusters found");
-  const percentages = normalizePercentages(picked.map((entry) => entry.score));
 
+  const percentages = normalizePercentages(picked.map((entry) => entry.combined));
   return picked.map((entry, index) => {
     const hex = bucketHex(entry);
     return {
@@ -361,7 +432,7 @@ const pending = skins.filter((skin) => force || !existing.has(skin.id));
 
 console.log(`Found ${skins.length} skins with images.${targetSlug ? ` Target slug: ${targetSlug}.` : ""}`);
 console.log(`Color analysis: ${pending.length} pending (${existing.size} already analyzed, force=${force})`);
-console.log("Scoring mode: perceptual visual weight (saturated finish colors are prioritized over neutral render surfaces).");
+console.log("Scoring mode: salience + coverage v3 (accent colors stay prominent, large white/silver regions stay represented).");
 
 let done = 0;
 let failed = 0;

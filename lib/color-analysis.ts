@@ -1,6 +1,6 @@
 import "server-only";
 import sharp from "sharp";
-import { getColorFamily } from "@/lib/color";
+import { getColorFamily, type ColorFamily } from "@/lib/color";
 
 export type AnalyzedColor = {
   hex: string;
@@ -36,6 +36,15 @@ type Bucket = {
   saturation: number;
   lightness: number;
 };
+
+type RankedCluster = Bucket & {
+  family: ColorFamily;
+  areaShare: number;
+  salienceShare: number;
+  combined: number;
+};
+
+const NEUTRAL_FAMILIES = new Set<ColorFamily>(["Black", "White", "Silver", "Gray"]);
 
 function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
@@ -94,18 +103,21 @@ function visualWeight(sample: PixelSample, vividRatio: number, kind: ItemKind) {
   const chromaMix = smoothstep(0.08, 0.3, sample.saturation);
   let neutralFactor = baseNeutral + (1 - baseNeutral) * chromaMix;
 
-  // Keep black as a useful secondary combo color. Mid-gray metal/palms are
-  // intentionally penalized more aggressively when a vivid finish exists.
+  // Black remains useful for loadout matching, while mid-gray render surfaces
+  // are deliberately weaker when the finish has a vivid identity.
   if (sample.saturation < 0.14 && sample.lightness < 0.16) {
     neutralFactor = Math.max(neutralFactor, kind === "glove" ? 0.36 : 0.42);
   }
-  if (sample.saturation < 0.12 && sample.lightness > 0.82) {
-    neutralFactor = Math.max(neutralFactor, 0.34);
+
+  // White paint is a real design color (e.g. Asiimov/Printstream), not render
+  // noise. Keep enough salience for it to survive beside a saturated accent.
+  if (sample.saturation < 0.12 && sample.lightness > 0.78) {
+    neutralFactor = Math.max(neutralFactor, kind === "glove" ? 0.34 : 0.48);
   }
 
   const saturationBoost = 0.9 + 2.6 * Math.pow(sample.saturation, 1.35);
-  const extremeLightPenalty = sample.lightness < 0.04 ? 0.5 : sample.lightness > 0.96 ? 0.62 : 1;
-  return alphaWeight * neutralFactor * saturationBoost * extremeLightPenalty;
+  const extremeDarkPenalty = sample.lightness < 0.035 ? 0.52 : 1;
+  return alphaWeight * neutralFactor * saturationBoost * extremeDarkPenalty;
 }
 
 function distance(a: Pick<Bucket, "r" | "g" | "b">, b: Pick<Bucket, "r" | "g" | "b">) {
@@ -126,13 +138,20 @@ function mergeBuckets(entries: Bucket[]) {
   for (const entry of entries) {
     let nearestIndex = -1;
     let nearestDistance = Number.POSITIVE_INFINITY;
+    const entryFamily = getColorFamily(bucketHex(entry));
 
     for (let i = 0; i < clusters.length; i += 1) {
-      const d = distance(entry, clusters[i]);
-      const entryFamily = getColorFamily(bucketHex(entry));
       const clusterFamily = getColorFamily(bucketHex(clusters[i]));
-      const bothNeutral = ["Gray", "Silver", "White"].includes(entryFamily) && ["Gray", "Silver", "White"].includes(clusterFamily);
-      const threshold = bothNeutral ? 62 : 42;
+      const sameFamily = entryFamily === clusterFamily;
+      const entryNeutral = NEUTRAL_FAMILIES.has(entryFamily);
+      const clusterNeutral = NEUTRAL_FAMILIES.has(clusterFamily);
+
+      // Do not blend White into Gray/Silver. That was the reason large white
+      // painted regions could disappear from the final palette.
+      if (entryNeutral && clusterNeutral && !sameFamily) continue;
+
+      const threshold = sameFamily ? (entryNeutral ? 54 : 46) : 26;
+      const d = distance(entry, clusters[i]);
       if (d < threshold && d < nearestDistance) {
         nearestDistance = d;
         nearestIndex = i;
@@ -156,7 +175,89 @@ function mergeBuckets(entries: Bucket[]) {
     current.score = combinedScore;
   }
 
-  return clusters.sort((a, b) => b.score - a.score);
+  return clusters;
+}
+
+function rankClusters(clusters: Bucket[], vividRatio: number): RankedCluster[] {
+  const totalArea = clusters.reduce((sum, cluster) => sum + cluster.area, 0) || 1;
+  const totalScore = clusters.reduce((sum, cluster) => sum + cluster.score, 0) || 1;
+
+  return clusters
+    .map((cluster) => {
+      const family = getColorFamily(bucketHex(cluster));
+      const areaShare = cluster.area / totalArea;
+      const salienceShare = cluster.score / totalScore;
+      let combined: number;
+
+      if (family === "White" || family === "Silver") {
+        combined = salienceShare * 0.54 + areaShare * 0.46;
+        if (areaShare >= 0.12) combined += 0.025;
+      } else if (family === "Gray") {
+        combined = vividRatio >= 0.08
+          ? salienceShare * 0.8 + areaShare * 0.2
+          : salienceShare * 0.58 + areaShare * 0.42;
+      } else if (family === "Black") {
+        combined = vividRatio >= 0.08
+          ? salienceShare * 0.72 + areaShare * 0.28
+          : salienceShare * 0.55 + areaShare * 0.45;
+      } else {
+        combined = salienceShare * 0.76 + areaShare * 0.24;
+      }
+
+      return { ...cluster, family, areaShare, salienceShare, combined };
+    })
+    .sort((a, b) => b.combined - a.combined);
+}
+
+function tooSimilar(candidate: RankedCluster, selected: RankedCluster[]) {
+  return selected.some((other) => {
+    if (candidate.family === other.family) return distance(candidate, other) < (NEUTRAL_FAMILIES.has(candidate.family) ? 54 : 40);
+    return distance(candidate, other) < 22;
+  });
+}
+
+function pickPalette(clusters: RankedCluster[], vividRatio: number) {
+  const picked: RankedCluster[] = [];
+  const add = (candidate: RankedCluster | undefined) => {
+    if (!candidate || picked.includes(candidate) || tooSimilar(candidate, picked) || picked.length >= 5) return;
+    picked.push(candidate);
+  };
+
+  // Reserve slots for visually defining accent families. This prevents glove
+  // palms / gray metal from pushing a small but unmistakable pink/blue accent
+  // out of a five-color palette.
+  if (vividRatio >= 0.035) {
+    const accentFamilies = new Set<ColorFamily>();
+    for (const candidate of clusters) {
+      if (NEUTRAL_FAMILIES.has(candidate.family)) continue;
+      if (candidate.salienceShare < 0.018 && candidate.areaShare < 0.006) continue;
+      if (accentFamilies.has(candidate.family)) continue;
+      add(candidate);
+      accentFamilies.add(candidate.family);
+      if (accentFamilies.size >= 3 || picked.length >= 3) break;
+    }
+  }
+
+  // Coverage matters too. Preserve a genuinely large white/silver/black/gray
+  // region even when a vivid accent is intentionally made primary.
+  const coverageNeutrals = clusters
+    .filter((candidate) => NEUTRAL_FAMILIES.has(candidate.family) && candidate.areaShare >= 0.075)
+    .sort((a, b) => b.areaShare - a.areaShare);
+  for (const candidate of coverageNeutrals.slice(0, 2)) add(candidate);
+
+  for (const candidate of clusters) {
+    add(candidate);
+    if (picked.length >= 5) break;
+  }
+
+  if (!picked.length) return [];
+
+  const strongestAccent = picked
+    .filter((candidate) => !NEUTRAL_FAMILIES.has(candidate.family))
+    .sort((a, b) => b.salienceShare - a.salienceShare)[0];
+  const primary = strongestAccent && vividRatio >= 0.035 ? strongestAccent : [...picked].sort((a, b) => b.combined - a.combined)[0];
+
+  return [primary, ...picked.filter((candidate) => candidate !== primary).sort((a, b) => b.combined - a.combined)];
 }
 
 function normalizePercentages(scores: number[]) {
@@ -195,7 +296,7 @@ export async function analyzeSkinImage(imageUrl: string, context: ColorAnalysisC
 
   const { data, info } = await sharp(input)
     .ensureAlpha()
-    .resize({ width: 160, height: 160, fit: "inside", withoutEnlargement: true })
+    .resize({ width: 176, height: 176, fit: "inside", withoutEnlargement: true })
     .raw()
     .toBuffer({ resolveWithObject: true });
 
@@ -211,18 +312,19 @@ export async function analyzeSkinImage(imageUrl: string, context: ColorAnalysisC
     if (a < 72) continue;
 
     const { saturation, lightness } = rgbStats(r, g, b);
-    if (lightness > 0.965 && saturation < 0.035) continue;
 
+    // The source renders have transparent backgrounds, so opaque white pixels
+    // are part of the skin and must not be discarded.
     const alphaWeight = a / 255;
     objectArea += alphaWeight;
-    if (saturation >= 0.22 && lightness >= 0.07 && lightness <= 0.94) vividArea += alphaWeight;
+    if (saturation >= 0.2 && lightness >= 0.06 && lightness <= 0.96) vividArea += alphaWeight;
     samples.push({ r, g, b, a, saturation, lightness });
   }
 
   if (!samples.length) return [];
   const vividRatio = vividArea / Math.max(1, objectArea);
   const buckets = new Map<string, { r: number; g: number; b: number; score: number; area: number; saturation: number; lightness: number }>();
-  const step = 24;
+  const step = 22;
 
   for (const sample of samples) {
     const score = visualWeight(sample, vividRatio, kind);
@@ -253,28 +355,15 @@ export async function analyzeSkinImage(imageUrl: string, context: ColorAnalysisC
       area: bucket.area,
       saturation: bucket.saturation / bucket.score,
       lightness: bucket.lightness / bucket.score,
-    }))
-    .sort((a, b) => b.score - a.score);
+    }));
 
-  const clusters = mergeBuckets(ranked);
-  const picked: Bucket[] = [];
-
-  for (const cluster of clusters) {
-    const family = getColorFamily(bucketHex(cluster));
-    const tooSimilar = picked.some((selected) => {
-      const selectedFamily = getColorFamily(bucketHex(selected));
-      const bothNeutral = ["Gray", "Silver", "White"].includes(family) && ["Gray", "Silver", "White"].includes(selectedFamily);
-      return distance(cluster, selected) < (bothNeutral ? 72 : 38);
-    });
-    if (!tooSimilar) picked.push(cluster);
-    if (picked.length >= 5) break;
-  }
-
+  const clusters = rankClusters(mergeBuckets(ranked), vividRatio);
+  const picked = pickPalette(clusters, vividRatio);
   if (!picked.length) return [];
-  const percentages = normalizePercentages(picked.map((bucket) => bucket.score));
 
-  return picked.map((bucket, index) => {
-    const hex = bucketHex(bucket);
+  const percentages = normalizePercentages(picked.map((cluster) => cluster.combined));
+  return picked.map((cluster, index) => {
+    const hex = bucketHex(cluster);
     return {
       hex,
       percentage: percentages[index],

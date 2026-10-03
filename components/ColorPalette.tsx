@@ -19,7 +19,7 @@ export function ColorPalette({ colors, compact = false }: { colors: SkinColor[];
   return (
     <div className="glass-panel rounded-[30px] p-6">
       <div className="flex items-center gap-2 text-white"><Palette size={18} className="text-fuchsia-300"/><h2 className="font-semibold">Color palette</h2></div>
-      <p className="mt-2 text-xs leading-5 text-zinc-400">Visually dominant colors detected from the skin image. Percentages represent visual weight, not raw pixel area. Manual admin palettes override automatic detection.</p>
+      <p className="mt-2 text-xs leading-5 text-zinc-400">Visually dominant colors detected from the skin image. Percentages balance visual identity with visible surface coverage, so strong accents stay prominent without hiding large white or silver areas. Manual admin palettes override automatic detection.</p>
       <div className="mt-5 overflow-hidden rounded-[18px] border border-white/[.07] bg-black/20">
         <div className="flex h-16 w-full">
           {colors.map((color) => (

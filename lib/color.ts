@@ -46,9 +46,9 @@ export function getColorFamily(hex: string): ColorFamily {
   const { h, s, l } = rgbToHsl(r, g, b);
 
   if (l < 0.13) return "Black";
-  if (l > 0.9 && s < 0.12) return "White";
-  if (s < 0.11) {
-    if (l > 0.68) return "Silver";
+  if (s < 0.12) {
+    if (l > 0.82) return "White";
+    if (l > 0.62) return "Silver";
     return "Gray";
   }
 
@@ -94,25 +94,104 @@ export function deltaE(hexA: string, hexB: string) {
   return Math.sqrt((a.l - b.l) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
 }
 
+const NEUTRAL_FAMILIES = new Set<ColorFamily>(["Black", "White", "Silver", "Gray"]);
+
+function isNeutralColor(color: SkinColor) {
+  return NEUTRAL_FAMILIES.has(color.color_name as ColorFamily);
+}
+
+function chromaticShare(palette: SkinColor[]) {
+  const total = palette.reduce((sum, color) => sum + Math.max(1, color.percentage ?? 1), 0) || 1;
+  return palette
+    .filter((color) => !isNeutralColor(color))
+    .reduce((sum, color) => sum + Math.max(1, color.percentage ?? 1), 0) / total;
+}
+
+function effectiveWeight(color: SkinColor, paletteHasAccents: boolean) {
+  const base = Math.max(1, color.percentage ?? 1);
+  if (!paletteHasAccents) return base;
+
+  if (!isNeutralColor(color)) {
+    return base * (color.is_primary ? 2.15 : 1.75);
+  }
+
+  switch (color.color_name) {
+    case "White":
+      return base * 0.58;
+    case "Black":
+      return base * 0.42;
+    case "Silver":
+      return base * 0.32;
+    case "Gray":
+    default:
+      return base * 0.24;
+  }
+}
+
 function weightedSideScore(source: SkinColor[], target: SkinColor[]) {
   if (!source.length || !target.length) return 0;
-  const total = source.reduce((sum, color) => sum + Math.max(1, color.percentage ?? 1), 0);
-  return source.reduce((sum, color) => {
+  const hasAccents = chromaticShare(source) >= 0.08;
+  const weights = source.map((color) => effectiveWeight(color, hasAccents));
+  const total = weights.reduce((sum, value) => sum + value, 0) || 1;
+
+  return source.reduce((sum, color, index) => {
     const nearest = Math.min(...target.map((other) => deltaE(color.hex, other.hex)));
-    const similarity = Math.exp(-nearest / 34);
+    const similarity = Math.exp(-nearest / 32);
+    return sum + similarity * (weights[index] / total);
+  }, 0);
+}
+
+function accentSideScore(source: SkinColor[], target: SkinColor[]) {
+  const sourceAccents = source.filter((color) => !isNeutralColor(color));
+  const targetAccents = target.filter((color) => !isNeutralColor(color));
+  if (!sourceAccents.length || !targetAccents.length) return 0;
+
+  const total = sourceAccents.reduce((sum, color) => sum + Math.max(1, color.percentage ?? 1), 0) || 1;
+  return sourceAccents.reduce((sum, color) => {
+    const nearest = Math.min(...targetAccents.map((other) => deltaE(color.hex, other.hex)));
+    const similarity = Math.exp(-nearest / 24);
     const weight = Math.max(1, color.percentage ?? 1) / total;
     return sum + similarity * weight;
   }, 0);
 }
 
+function strongestAccent(palette: SkinColor[]) {
+  return [...palette]
+    .filter((color) => !isNeutralColor(color))
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || (b.percentage ?? 0) - (a.percentage ?? 0))[0];
+}
+
 export function paletteMatchScore(left: SkinColor[], right: SkinColor[]) {
   if (!left.length || !right.length) return 0;
-  const perceptual = (weightedSideScore(left, right) + weightedSideScore(right, left)) / 2;
-  const leftPrimary = left.find((color) => color.is_primary) ?? left[0];
-  const rightPrimary = right.find((color) => color.is_primary) ?? right[0];
-  const sameFamily = leftPrimary && rightPrimary && leftPrimary.color_name === rightPrimary.color_name;
-  const boosted = Math.min(1, perceptual + (sameFamily ? 0.055 : 0));
-  return Math.round(boosted * 100);
+
+  const fullPerceptual = (weightedSideScore(left, right) + weightedSideScore(right, left)) / 2;
+  const leftChromaticShare = chromaticShare(left);
+  const rightChromaticShare = chromaticShare(right);
+  const accentRelevant = Math.max(leftChromaticShare, rightChromaticShare) >= 0.1;
+
+  let score = fullPerceptual;
+  if (accentRelevant) {
+    const accent = (accentSideScore(left, right) + accentSideScore(right, left)) / 2;
+    score = fullPerceptual * 0.34 + accent * 0.66;
+
+    // A vivid loadout should not rank a mostly neutral item highly just because
+    // both renders contain gray/black surfaces.
+    const oneSideLacksAccents =
+      (leftChromaticShare >= 0.16 && rightChromaticShare < 0.055) ||
+      (rightChromaticShare >= 0.16 && leftChromaticShare < 0.055);
+    if (oneSideLacksAccents) score *= 0.72;
+  }
+
+  const leftAccent = strongestAccent(left);
+  const rightAccent = strongestAccent(right);
+  if (leftAccent && rightAccent) {
+    const accentDistance = deltaE(leftAccent.hex, rightAccent.hex);
+    if (leftAccent.color_name === rightAccent.color_name) score += 0.06;
+    else if (accentDistance <= 18) score += 0.035;
+    else if (accentDistance >= 52) score *= 0.9;
+  }
+
+  return Math.round(Math.max(0, Math.min(1, score)) * 100);
 }
 
 export function activePalette(colors: SkinColor[]) {
