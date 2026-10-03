@@ -26,6 +26,7 @@ export function SkinSearch({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [smartMatch, setSmartMatch] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -54,6 +55,7 @@ export function SkinSearch({
       setResults([]);
       setLoading(false);
       setError("");
+      setSmartMatch(false);
       return;
     }
 
@@ -66,10 +68,14 @@ export function SkinSearch({
         if (!res.ok) throw new Error("Search unavailable");
         const json = await res.json();
         setResults(json.items ?? []);
+        setSmartMatch(Boolean(json.smartMatch));
         setActiveIndex(0);
         setOpen(true);
       } catch (err) {
-        if ((err as Error).name !== "AbortError") setError("Could not search skins. Check your Supabase connection.");
+        if ((err as Error).name !== "AbortError") {
+          setSmartMatch(false);
+          setError("Could not search skins. Check your Supabase connection.");
+        }
       } finally {
         setLoading(false);
       }
@@ -132,7 +138,7 @@ export function SkinSearch({
         </div>
       ) : (
         <>
-          <div className="search-shell flex h-[76px] items-center gap-3 rounded-[24px] border border-white/10 px-5 transition duration-300 focus-within:border-blue-300/35 focus-within:shadow-[0_0_0_4px_rgba(96,165,250,.07),0_24px_70px_rgba(0,0,0,.35)]">
+          <div className={`search-shell flex h-[76px] items-center gap-3 rounded-[24px] border px-5 transition duration-300 focus-within:border-blue-300/35 focus-within:shadow-[0_0_0_4px_rgba(96,165,250,.07),0_24px_70px_rgba(0,0,0,.35)] ${smartMatch ? "border-violet-300/30" : "border-white/10"}`}>
             <Search size={18} className="shrink-0 text-blue-300/80" />
             <input
               ref={inputRef}
@@ -162,6 +168,12 @@ export function SkinSearch({
             />
             {loading ? <div className="size-4 animate-spin rounded-full border-2 border-white/15 border-t-white/70" /> : <ChevronDown size={16} className={`text-zinc-400 transition ${open ? "rotate-180" : ""}`} />}
           </div>
+
+          {smartMatch && results.length ? (
+            <div className="smart-match-hint mt-2 flex items-center gap-2 px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-violet-200/85">
+              <span className="smart-match-dot" /> Smart match · we corrected the search automatically
+            </div>
+          ) : null}
 
           {open ? (
             <div ref={listRef} className="search-results absolute z-[70] mt-3 max-h-[430px] w-full overflow-y-auto rounded-[24px] border border-white/10 bg-[#0d1119]/98 p-2 shadow-[0_35px_110px_rgba(0,0,0,.72)] backdrop-blur-3xl">

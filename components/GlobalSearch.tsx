@@ -48,7 +48,7 @@ export function GlobalSearch() {
         aria-label="Search skins"
       >
         <Search size={15} className="text-blue-300" />
-        <span className="text-zinc-300">Search skins</span>
+        <span className="text-zinc-200">Search skins</span>
         <span className="ml-auto flex items-center gap-1">
           <kbd className="search-key">{shortcut}</kbd>
           <kbd className="search-key">K</kbd>

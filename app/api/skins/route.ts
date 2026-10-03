@@ -1,15 +1,68 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const aliases: Array<[RegExp, string]> = [
-  [/\bdeagle\b/g, "desert eagle"],
-  [/\bak47\b/g, "ak 47"],
-  [/\bak\b(?!\s*47)/g, "ak 47"],
-  [/\bm4a1s\b/g, "m4a1 s"],
-  [/\busps\b/g, "usp s"],
-  [/\bbfk\b/g, "butterfly knife"],
-  [/\bkara\b/g, "karambit"],
-];
+const aliasMap: Record<string, string> = {
+  // Weapons / common shorthand
+  deagle: "desert eagle",
+  "ak47": "ak 47",
+  ak: "ak 47",
+  "m4a1s": "m4a1 s",
+  usps: "usp s",
+  usp: "usp s",
+  bfk: "butterfly knife",
+  butterfly: "butterfly knife",
+  kara: "karambit",
+  karambit: "karambit",
+  bayo: "bayonet",
+  bayonet: "bayonet",
+  m9: "m9 bayonet",
+  m9bayo: "m9 bayonet",
+  talon: "talon knife",
+  skeleton: "skeleton knife",
+  skele: "skeleton knife",
+  stiletto: "stiletto knife",
+  stilleto: "stiletto knife",
+  ursus: "ursus knife",
+  paracord: "paracord knife",
+  survival: "survival knife",
+  navaja: "navaja knife",
+  nomad: "nomad knife",
+  classic: "classic knife",
+  gut: "gut knife",
+  flip: "flip knife",
+  huntsman: "huntsman knife",
+  bowie: "bowie knife",
+  falchion: "falchion knife",
+  daggers: "shadow daggers",
+  shadowdaggers: "shadow daggers",
+  kukri: "kukri knife",
+  // Common finish aliases / spacing variants
+  printstream: "print stream",
+  marblefade: "marble fade",
+  tigerstooth: "tiger tooth",
+  tigertooth: "tiger tooth",
+  rustcoat: "rust coat",
+  crimsonweb: "crimson web",
+  redline: "red line",
+  asiimov: "asiimov",
+  asimov: "asiimov",
+  assimov: "asiimov",
+  assiimov: "asiimov",
+  assiiimov: "asiimov",
+  dopler: "doppler",
+  dopller: "doppler",
+  doppler: "doppler",
+  autotronic: "autotronic",
+  lore: "lore",
+  hyperbeast: "hyper beast",
+  wastelandrebel: "wasteland rebel",
+  nightwish: "night wish",
+  fuelinjector: "fuel injector",
+  fuelinjection: "fuel injector",
+  aquamarine: "aquamarine revenge",
+};
+
+const columns = "id,api_id,slug,name,weapon_name,finish_name,category,rarity_name,rarity_color,min_float,max_float,stattrak,souvenir,image_url,market_hash_name,price_usd";
 
 function normalize(value: string) {
   let result = value
@@ -21,8 +74,55 @@ function normalize(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 
-  for (const [pattern, replacement] of aliases) result = result.replace(pattern, replacement);
+  // Apply aliases to compact tokens first, then again after spacing normalization.
+  result = result.split(" ").map((token) => aliasMap[token] ?? token).join(" ");
   return result.replace(/\s+/g, " ").trim();
+}
+
+function compact(value: string) {
+  return normalize(value).replace(/\s+/g, "");
+}
+
+function levenshtein(a: string, b: string) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  if (a.length > b.length) [a, b] = [b, a];
+
+  let previous = Array.from({ length: a.length + 1 }, (_, i) => i);
+  for (let j = 1; j <= b.length; j += 1) {
+    const current = [j];
+    for (let i = 1; i <= a.length; i += 1) {
+      current[i] = Math.min(
+        current[i - 1] + 1,
+        previous[i] + 1,
+        previous[i - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+    previous = current;
+  }
+  return previous[a.length];
+}
+
+function typoDistance(token: string) {
+  if (token.length <= 4) return 0;
+  if (token.length <= 7) return 1;
+  if (token.length <= 11) return 2;
+  return 3;
+}
+
+function tokenMatch(queryToken: string, candidateTokens: string[]) {
+  let best = Number.POSITIVE_INFINITY;
+  for (const candidate of candidateTokens) {
+    if (candidate === queryToken) return 0;
+    if (candidate.includes(queryToken) || queryToken.includes(candidate)) {
+      best = Math.min(best, 0.25);
+      continue;
+    }
+    const distance = levenshtein(queryToken, candidate);
+    if (distance <= typoDistance(queryToken)) best = Math.min(best, distance);
+  }
+  return best;
 }
 
 function scoreSkin(skin: any, query: string, tokens: string[]) {
@@ -31,22 +131,50 @@ function scoreSkin(skin: any, query: string, tokens: string[]) {
   const finish = normalize(skin.finish_name ?? "");
   const market = normalize(skin.market_hash_name ?? "");
   const haystack = `${name} ${weapon} ${finish} ${market}`;
+  const candidateTokens = haystack.split(" ").filter(Boolean);
+  const compactHaystack = compact(haystack);
 
-  if (!tokens.every((token) => haystack.includes(token))) return -1;
+  const compactQuery = compact(query);
+  const exactPhrase = name === query || market === query;
+  const phraseMatch = haystack.includes(query) || `${weapon} ${finish}`.includes(query) || `${finish} ${weapon}`.includes(query);
+  const compactMatch = compactHaystack.includes(compactQuery);
 
-  let score = 100;
-  if (name === query || market === query) score += 1200;
-  if (name.includes(query) || market.includes(query)) score += 520;
-  if (`${weapon} ${finish}`.includes(query) || `${finish} ${weapon}`.includes(query)) score += 440;
+  const matches = tokens.map((token) => tokenMatch(token, candidateTokens));
+  if (matches.some((distance) => !Number.isFinite(distance))) return -1;
+
+  const fuzzyPenalty = matches.reduce((sum, distance) => sum + distance, 0);
+  let score = 1000 - fuzzyPenalty * 110;
+  if (exactPhrase) score += 1500;
+  if (phraseMatch) score += 700;
+  if (compactMatch) score += 520;
 
   for (const token of tokens) {
-    if (weapon === token || finish === token) score += 110;
-    if (weapon.startsWith(token) || finish.startsWith(token)) score += 65;
-    if (name.startsWith(token) || market.startsWith(token)) score += 35;
+    if (weapon === token || finish === token) score += 150;
+    if (weapon.startsWith(token) || finish.startsWith(token)) score += 80;
+    if (name.startsWith(token) || market.startsWith(token)) score += 45;
   }
 
-  score += Math.min(tokens.length * 28, 168);
+  score += Math.min(tokens.length * 40, 200);
   return score;
+}
+
+async function searchCandidates(supabase: Awaited<ReturnType<typeof createClient>>, query: string, tokens: string[]) {
+  const primary = [...tokens].sort((a, b) => b.length - a.length)[0].replace(/[,%_]/g, "");
+  if (!primary) return [];
+
+  const { data, error } = await supabase
+    .from("skins")
+    .select(columns)
+    .or([
+      `name.ilike.%${primary}%`,
+      `weapon_name.ilike.%${primary}%`,
+      `finish_name.ilike.%${primary}%`,
+      `market_hash_name.ilike.%${primary}%`,
+    ].join(","))
+    .limit(320);
+
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function GET(request: Request) {
@@ -58,31 +186,29 @@ export async function GET(request: Request) {
   const tokens = query.split(" ").filter(Boolean).slice(0, 10);
   if (!tokens.length) return NextResponse.json({ items: [] });
 
-  // Search by the most distinctive token, then require every query token locally.
-  // This keeps the candidate pool small while allowing any word order.
-  const primary = [...tokens].sort((a, b) => b.length - a.length)[0].replace(/[,%_]/g, "");
   const supabase = await createClient();
-  const columns = "id,api_id,slug,name,weapon_name,finish_name,category,rarity_name,rarity_color,min_float,max_float,stattrak,souvenir,image_url,market_hash_name,price_usd";
+  let candidates = await searchCandidates(supabase, query, tokens);
 
-  const { data, error } = await supabase
-    .from("skins")
-    .select(columns)
-    .or([
-      `name.ilike.%${primary}%`,
-      `weapon_name.ilike.%${primary}%`,
-      `finish_name.ilike.%${primary}%`,
-      `market_hash_name.ilike.%${primary}%`,
-    ].join(","))
-    .limit(220);
+  // If the exact/alias candidate lookup misses a typo such as “assiimov”,
+  // fall back to the full lightweight name index. The database is only ~2k
+  // skins, so this is cheap and makes search resilient to human mistakes.
+  if (!candidates.length && query.replace(/\s/g, "").length >= 5) {
+    const { data, error } = await supabase
+      .from("skins")
+      .select(columns)
+      .limit(5000);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    candidates = data ?? [];
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const items = (data ?? [])
+  const ranked = candidates
     .map((skin) => ({ skin, score: scoreSkin(skin, query, tokens) }))
     .filter((item) => item.score >= 0)
     .sort((a, b) => b.score - a.score || String(a.skin.name).localeCompare(String(b.skin.name)))
-    .slice(0, 14)
-    .map((item) => item.skin);
+    .slice(0, 14);
 
-  return NextResponse.json({ items });
+  return NextResponse.json({
+    items: ranked.map((item) => item.skin),
+    smartMatch: ranked.length > 0 && ranked[0].score < 1600,
+  });
 }
